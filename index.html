@@ -20,8 +20,9 @@
     <ul id="messages"></ul>
     <form id="form" action="">
       <input id="input" autocomplete="off" /><button>Send</button>
-      <button id="emoji" type="button">Emoji</button>
-      <button id="toggle-btn">Disconnect</button>
+      <button id="emoji" type="button">😊</button>
+      <button id="toggle-btn" type="button">Disconnect</button>
+      <button id="nickname" type="button">Set Nickname</button>
     </form>
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -42,6 +43,7 @@
       const emoji = document.getElementById('emoji');
       const messages = document.getElementById('messages');
       const toggleButton = document.getElementById('toggle-btn');
+      const nicknameButton = document.getElementById('nickname');
 
       toggleButton.addEventListener('click', (e) => {
         e.preventDefault();
@@ -67,9 +69,10 @@
       emoji.addEventListener('click', (e) => {
         e.preventDefault();
         console.log("emoji button clicked");
-        const valueEmoji = '😊';
+        const valueEmoji = ['😊', '😂', '😍', '😁', '😜', '😎', '😭', '😅', '😂', '😊', '😍', '😁', '😜', '😎', '😭', '😅'];
+        const randomEmoji = valueEmoji[Math.floor(Math.random() * valueEmoji.length)]; 
         const clientOffset = `${socket.id}-${counter++}`;
-        socket.emit('chat message', valueEmoji, clientOffset);
+        socket.emit('chat message', randomEmoji, clientOffset);
       });
 
       socket.on('chat message', (msg, serverOffset) => {
@@ -81,6 +84,26 @@
         socket.auth.serverOffset = serverOffset;
       })
 
+      socket.on('user disconnected', userId => {
+        console.log("user disconnected: " + userId);
+        const item = document.createElement('li');
+        item.textContent = "User: " + userId + " disconnected";
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      })
+
+      socket.on('user connected', userId => {
+        console.log("user connected: " + userId);
+        if (userId === socket.id.slice(0, 4)) {
+          return;
+        } else {
+          const item = document.createElement('li');
+          item.textContent = "User: " + userId + " connected";
+          messages.appendChild(item);
+          window.scrollTo(0, document.body.scrollHeight);
+        } 
+      });
+
       socket.onAny((eventName, ...args) => {
         console.log(eventName);
         console.log(args);
@@ -91,6 +114,10 @@
         console.log(args);
       })
 
-    </script> 
+    </script>
+    <!-- modal for setting nickname -->
+    <div id="nicknameModal" class="modal">
+      <div
+    </div>
   </body>
 </html>

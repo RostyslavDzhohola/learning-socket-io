@@ -54,6 +54,7 @@ if(cluster.isPrimary) {
 
   io.on('connection', async (socket) => {
     console.log("a user connected"  );
+    io.emit('user connected', socket.id.slice(0, 4));
 
     socket.on('chat message', async (msg, clientOffset, callback) => {
       console.log('Received message:', msg);
@@ -100,7 +101,8 @@ if(cluster.isPrimary) {
     }
 
     socket.on('disconnect', () => {
-      console.log("user disconnected");
+      console.log("user disconnected: " + socket.id.slice(0, 4));
+      io.emit('user disconnected', socket.id.slice(0, 4));
     });
   });
 
