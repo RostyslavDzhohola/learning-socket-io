@@ -53,8 +53,6 @@ if(cluster.isPrimary) {
   });
 
   io.on('connection', async (socket) => {
-    console.log("a user connected"  );
-    io.emit('user connected', socket.id.slice(0, 4));
 
     socket.on('chat message', async (msg, clientOffset, callback) => {
       console.log('Received message:', msg);
@@ -100,9 +98,17 @@ if(cluster.isPrimary) {
       
     }
 
+    socket.on('nickname connected', (nickname) => {
+      console.log(`User ${nickname} connected`);
+      socket.nickname = nickname; // Store the nickname on the socket object
+      socket.broadcast.emit('user connected', nickname);
+    });
+
     socket.on('disconnect', () => {
-      console.log("user disconnected: " + socket.id.slice(0, 4));
-      io.emit('user disconnected', socket.id.slice(0, 4));
+      if (socket.nickname) {
+        console.log(`User ${socket.nickname} disconnected`);
+        socket.broadcast.emit('user disconnected', socket.nickname);
+      }
     });
   });
 
@@ -112,4 +118,5 @@ if(cluster.isPrimary) {
     console.log(`Server running at http://localhost:${port}`);
   });
 }
+
 
