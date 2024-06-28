@@ -57,9 +57,7 @@ if(cluster.isPrimary) {
     socket.on('chat message', async (msg, clientOffset, callback) => {
       console.log('Received message:', msg);
       console.log('Client offset:', clientOffset);
-      console.log('Callback type:', typeof callback);
 
-      // Ensure msg and clientOffset are strings
       if (typeof msg !== 'string' || typeof clientOffset !== 'string') {
         console.error('Invalid message or clientOffset');
         return;
@@ -68,6 +66,13 @@ if(cluster.isPrimary) {
       let result;
       try {
         result = await db.run('INSERT INTO messages (content, client_offset) VALUES (?, ?)', msg, clientOffset);
+        
+        // Emit the message to all clients except the sender
+        socket.broadcast.emit('chat message', msg, result.lastID);
+        
+        if (typeof callback === 'function') {
+          callback(result.lastID); // Send back the server-generated ID
+        }
       } catch (e) {
         if (e.errno === 19 /* SQLITE_CONSTRAINT */ ) {
           if (typeof callback === 'function') callback();
@@ -77,8 +82,6 @@ if(cluster.isPrimary) {
         return;
       }
       console.log('message: ' + msg );
-      io.emit('chat message', msg, result.lastID);
-      if (typeof callback === 'function') callback();
     });
 
 
@@ -118,5 +121,3 @@ if(cluster.isPrimary) {
     console.log(`Server running at http://localhost:${port}`);
   });
 }
-
-

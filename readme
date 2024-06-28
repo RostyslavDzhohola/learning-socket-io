@@ -4,7 +4,7 @@ Here are some ideas to improve the application:
 I don't need to store the messages in database, only notify the chat that a user has connected or disconnected.
 - [x] Add support for nicknames.
 I can store nicknames in database and have a button for creating a nickname. How would I keep the nickname persistent? 
-- [ ] Don't send the same message to the user that sent it. Instead, append the message directly as soon as they press enter.
+- [x] Don't send the same message to the user that sent it. Instead, append the message directly as soon as they press enter.
 - [ ] Add "{user} is typing" functionality.
 - [ ] Show who's online.
 - [ ] Add private messaging.

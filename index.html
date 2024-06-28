@@ -143,6 +143,10 @@
           const nickname = getNickname();
           if (input.value) {
             const msg = nickname + ": " + input.value;
+          const item = document.createElement('li');
+            item.textContent = msg;
+            messages.appendChild(item);
+            window.scrollTo(0, document.body.scrollHeight);
             // compute a unique offset
             const clientOffset = `${socket.id}-${counter++}`;
             socket.emit('chat message', msg, clientOffset);
@@ -157,6 +161,10 @@
           const valueEmoji = ['😊', '😂', '😍', '😁', '😜', '😎', '😭', '😅', '😂', '😊', '😍', '😁', '😜', '😎', '😭', '😅'];
           const randomEmoji = valueEmoji[Math.floor(Math.random() * valueEmoji.length)]; 
           const msg = nickname + ": " + randomEmoji;
+          const item = document.createElement('li');
+          item.textContent = msg;
+          messages.appendChild(item);
+          window.scrollTo(0, document.body.scrollHeight);
           const clientOffset = `${socket.id}-${counter++}`;
           socket.emit('chat message', msg, clientOffset);
         });
