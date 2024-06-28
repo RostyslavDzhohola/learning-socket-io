@@ -206,8 +206,12 @@
           }
         });
 
-        socket.on("disconnect", (reason) => {
+        socket.on("disconnect", (reason, details) => {
           console.log("Socket disconnected due to " + reason);
+          console.log(details.reason);
+          console.log(details.message);
+          console.log(details.description);
+          console.log(details.context);
         });
 
         socket.onAny((eventName, ...args) => {

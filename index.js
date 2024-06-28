@@ -107,12 +107,22 @@ if(cluster.isPrimary) {
       socket.broadcast.emit('user connected', nickname);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+      console.log(`User disconnected. Reason: ${reason}`);
       if (socket.nickname) {
         console.log(`User ${socket.nickname} disconnected`);
         socket.broadcast.emit('user disconnected', socket.nickname);
       }
     });
+
+    // Optional: Log additional disconnect events
+    socket.on('disconnecting', (reason) => {
+      console.log(`User ${socket.nickname} is disconnecting. Reason: ${reason}`);
+    });
+  });
+
+  io.engine.on('connection_error', (err) => {
+    console.log(`Connection error: ${err.message}`);
   });
 
   const port = process.env.PORT;
