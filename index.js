@@ -46,6 +46,7 @@ if (cluster.isPrimary) {
   });
 
   io.on("connection", async (socket) => {
+    
     socket.on("chat message", async (msg, clientOffset, callback) => {
       let result;
       let msgWithName = `${socket.handshake.auth.userName}: ${msg}`;
