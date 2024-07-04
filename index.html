@@ -14,13 +14,45 @@
       #messages { list-style-type: none; margin: 0; padding: 0; }
       #messages > li { padding: 0.5rem 1rem; }
       #messages > li:nth-child(odd) { background: #efefef; }
+
+      dialog {
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      dialog::backdrop {
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      dialog form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      dialog input, dialog button {
+        padding: 5px 10px;
+      }
+
     </style>
   </head>
   <body>
     <ul id="messages"></ul>
     <form id="form" action="">
       <input id="input" autocomplete="off" /><button>Send</button>
+      <button id="toggle-btn" type="button">Disconnect</button>
+      <button id="openNicknameDialogButton" type="button">Set Nickname</button>
     </form>
+    <!-- modal for setting nickname -->
+    <dialog id="nicknameModal" class="modal">
+      <form method="dialog">
+        <label for="nicknameInput">Set your Nickname</label>
+        <input type="text" id="nicknameInput" name="nickname" placeholder="Enter your nickname" required>
+        <button type="submit" >Set</button>
+        <button type="button" id="closeNicknameModalButton">Cancel</button>
+      </form>
+    </dialog>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       let counter = 0;
@@ -29,27 +61,107 @@
         ackTimeout: 10000,
         retries: 3,
         auth: {
-          serverOffset: 0
+          serverOffset: 0,
+          userName: getNickname()
         }
       });
 
-      socket.on("connect", () => {
-        console.log(`connected ${socket.id}`);
+      socket.on("connect", (userName) => {
+        console.log(`connected ${socket.id} with name ${userName}`);
       });
 
       socket.on("disconnect", (reason) => {
-        console.log(`disconnected ${socket.id} due to ${reason}`);
+        console.log(`disconnected ${socket.id} due to -> ${reason}`);
+      });
+
+      socket.on("user connected", (userName) => {
+        console.log(`user ${userName} connected`);
+        const item = document.createElement('li');
+        item.textContent = `${userName} connected`;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      });
+
+      socket.on("user disconnected", (userName) => {
+        console.log(`user ${userName} disconnected`);
+        const item = document.createElement('li');
+        item.textContent = `${userName} disconnected`;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
       });
   
       const form = document.getElementById('form');
       const input = document.getElementById('input');
       const messages = document.getElementById('messages');
+      const toggleButton = document.getElementById('toggle-btn');
+      const dialog = document.getElementById('nicknameModal');
+      const openNicknameDialogButton = document.getElementById('openNicknameDialogButton');
+      const closeNicknameModalButton = document.getElementById('closeNicknameModalButton');
+      const nicknameInput = document.getElementById('nicknameInput');
+
+      //Open dialog window
+      openNicknameDialogButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        dialog.showModal();
+      });
+      // close dialog window
+      if (closeNicknameModalButton) {
+        closeNicknameModalButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          dialog.close();
+        });
+      } else {
+        console.error('Close button not found');
+      }
+      // handle submission of the dialog form
+      dialog.addEventListener('submit', () => {
+        if( dialog.returnValue !== 'cancel') {
+          const newNickname = nicknameInput.value.trim();
+          if (newNickname) {
+            setNickname(newNickname);
+        }
+        }
+      });
+
+      function getNickname () {
+        return sessionStorage.getItem('chatNickname') || 'Anon';
+      }
+
+      function setNickname (nickname) {
+        sessionStorage.setItem('chatNickname',nickname);
+        socket.auth.userName = nickname;
+      }
+      //check for existing nickname
+      window.addEventListener('load',  () => {
+        const savedNickname = sessionStorage.getItem('chatNickname');
+        if(!savedNickname) {
+          console.log("no saved nickname");
+        } else {
+          console.log(`saved nickname ${savedNickname}`);
+          userName = savedNickname;
+        }
+      })
+
+      toggleButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (socket.connected) { 
+          toggleButton.innerText = "Connect";
+          socket.disconnect();
+        } else {
+          toggleButton.innerText = "Disconnect";
+          socket.connect();
+        }
+      });
   
       form.addEventListener('submit', (e) => {
         e.preventDefault();
         if (input.value) {
           const clientOffset = `${socket.id}-${counter++}`;
           socket.emit('chat message', input.value, clientOffset);
+          const item = document.createElement('li');
+          item.textContent = `${socket.auth.userName}: ${input.value}`;
+          messages.appendChild(item);
+          window.scrollTo(0, document.body.scrollHeight);
           input.value = '';
         }
       });

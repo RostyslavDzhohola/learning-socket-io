@@ -48,10 +48,11 @@ if (cluster.isPrimary) {
   io.on("connection", async (socket) => {
     socket.on("chat message", async (msg, clientOffset, callback) => {
       let result;
+      let msgWithName = `${socket.handshake.auth.userName}: ${msg}`;
       try {
         result = await db.run(
           "INSERT INTO messages (content, client_offset) VALUES (?, ?)",
-          msg,
+          msgWithName,
           clientOffset
         );
       } catch (e) {
@@ -62,12 +63,14 @@ if (cluster.isPrimary) {
         }
         return;
       }
-      io.emit("chat message", msg, result.lastID);
+      socket.broadcast.emit("chat message", msgWithName, result.lastID);
       callback();
     });
 
     if (!socket.recovered) {
       try {
+        console.log(`recovering ${socket.id} with name ${socket.handshake.auth.userName}`);
+        socket.broadcast.emit("user connected", socket.handshake.auth.userName);
         await db.each(
           "SELECT id, content FROM messages WHERE id > ?",
           [socket.handshake.auth.serverOffset || 0],
@@ -81,7 +84,8 @@ if (cluster.isPrimary) {
     }
 
     socket.on("disconnect", (reason) => {
-      console.log(`disconnect ${socket.id} due to ${reason}`);
+      console.log(`disconnected ${socket.id} with username ${socket.handshake.auth.userName} due to ${reason}`);
+      socket.broadcast.emit("user disconnected", socket.handshake.auth.userName);
     });
   });
 
