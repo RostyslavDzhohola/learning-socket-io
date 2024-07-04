@@ -78,17 +78,12 @@ if (cluster.isPrimary) {
       callback();
     });
 
-    socket.on('get users online', async () => {
-      const usersOnline = await getUsersOnline();
-      socket.emit('users online returned', Array.from(usersOnline));
-    });
-
     if (!socket.recovered) {
       try {
         console.log(`recovering ${socket.id} with name ${socket.handshake.auth.userName}`);
         const usersOnline = await getUsersOnline();
         console.log(`Array of users when recovered ${Array.from(usersOnline)}`);
-        socket.broadcast.emit("user connected", socket.handshake.auth.userName, Array.from(usersOnline));
+        io.emit("user connected", socket.handshake.auth.userName, Array.from(usersOnline));
         await db.each(
           "SELECT id, content FROM messages WHERE id > ?",
           [socket.handshake.auth.serverOffset || 0],
@@ -107,7 +102,7 @@ if (cluster.isPrimary) {
       console.log(`Array of users when disconnected ${Array.from(usersOnline)}`);
       usersOnline.delete(socket.handshake.auth.userName);
       console.log(`Users: ${[...usersOnline]}`);
-      socket.broadcast.emit("user disconnected", socket.handshake.auth.userName, Array.from(usersOnline));
+      io.emit("user disconnected", socket.handshake.auth.userName, Array.from(usersOnline));
     
     });
   

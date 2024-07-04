@@ -113,12 +113,6 @@
 
       socket.on("connect", () => {
         console.log(`connected ${socket.id} with name ${getNickname()} PS. this is where you put emit to get the list of users online`);
-        socket.emit('get users online');
-      });
-
-      socket.on('users online returned', (usersOnline) => {
-        console.log(`users online: ${usersOnline}`);
-        updateOnlineUsers(usersOnline);
       });
 
       socket.on("disconnect", (reason) => {
