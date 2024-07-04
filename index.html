@@ -111,33 +111,43 @@
         }
       });
 
-      socket.on("connect", (onlineUsers) => {
-        console.log(`connected ${socket.id} with name ${getNickname()}`);
-        onlineUsers = onlineUsers;
+      socket.on("connect", () => {
+        console.log(`connected ${socket.id} with name ${getNickname()} PS. this is where you put emit to get the list of users online`);
+        socket.emit('get users online');
+      });
+
+      socket.on('users online returned', (usersOnline) => {
+        console.log(`users online: ${usersOnline}`);
+        updateOnlineUsers(usersOnline);
       });
 
       socket.on("disconnect", (reason) => {
         console.log(`disconnected ${socket.id} due to -> ${reason}`);
+        updateOnlineUsers([]);
       });
 
-      socket.on("user connected", (userName) => {
+      socket.on("user connected", (userName, usersOnline) => {
         console.log(`user ${userName} connected`);
+        console.log(`users online: ${usersOnline}`);
         const item = document.createElement('li');
         item.textContent = `${userName} connected`;
         messages.appendChild(item);
-        addOnlineUser(userName);
+        updateOnlineUsers(usersOnline);
+
         window.scrollTo(0, document.body.scrollHeight);
       });
 
-      socket.on("user disconnected", (userName) => {
+      socket.on("user disconnected", (userName, usersOnline) => {
         console.log(`user ${userName} disconnected`);
+        console.log(`users online: ${usersOnline}`);
         const item = document.createElement('li');
         item.textContent = `${userName} disconnected`;
         messages.appendChild(item);
-        removeOnlineUser(userName);
+        updateOnlineUsers(usersOnline);
         window.scrollTo(0, document.body.scrollHeight);
       });
-  
+
+
       const form = document.getElementById('form');
       const input = document.getElementById('input');
       const messages = document.getElementById('messages');
@@ -148,14 +158,8 @@
       const nicknameInput = document.getElementById('nicknameInput');
       const onlineUsersList = document.getElementById('online-users-list');
 
-      //Get list of the online users
-      function addOnlineUser (userName) {
-        onlineUsers.push(userName);
-        onlineUsersList.innerHTML = onlineUsers.map((user) => `<li>${user}</li>`).join('');
-      }
-
-      function removeOnlineUser (userName) {
-        onlineUsers = onlineUsers.filter((user) => user !== userName);
+      function updateOnlineUsers (onlineList) {
+        onlineUsers = onlineList;
         onlineUsersList.innerHTML = onlineUsers.map((user) => `<li>${user}</li>`).join('');
       }
 

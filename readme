@@ -7,6 +7,6 @@ I can store nicknames in database and have a button for creating a nickname. How
 - [x] Don't send the same message to the user that sent it. Instead, append the message directly as soon as they press enter.
 - [ ] Add "{user} is typing" functionality.
 
-- [ ] Show who's online.
+- [x] Show who's online.
 - [ ] Add private messaging.
 - [ ] Share your improvements!
