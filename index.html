@@ -123,23 +123,35 @@
       socket.on("user connected", (userName, usersOnline) => {
         console.log(`user ${userName} connected`);
         console.log(`users online: ${usersOnline}`);
-        const item = document.createElement('li');
-        item.textContent = `${userName} connected`;
-        messages.appendChild(item);
         updateOnlineUsers(usersOnline);
-
-        window.scrollTo(0, document.body.scrollHeight);
+        updateUserConnection(userName, 'connected');
       });
 
       socket.on("user disconnected", (userName, usersOnline) => {
         console.log(`user ${userName} disconnected`);
         console.log(`users online: ${usersOnline}`);
-        const item = document.createElement('li');
-        item.textContent = `${userName} disconnected`;
-        messages.appendChild(item);
         updateOnlineUsers(usersOnline);
-        window.scrollTo(0, document.body.scrollHeight);
+        updateUserConnection(userName, 'disconnected');
       });
+
+      function updateUserConnection(userName, status) {
+        // Find and remove any existing connection message for this user
+        const existingMessage = Array.from(messages.children).find(
+          item => item.dataset.userName === userName
+        );
+        if (existingMessage) {
+          messages.removeChild(existingMessage);
+        }
+
+        // Create new message
+        const item = document.createElement('li');
+        item.textContent = `${userName} ${status}`;
+        item.dataset.userName = userName;
+        item.dataset.connectionStatus = status;
+        messages.appendChild(item);
+
+        window.scrollTo(0, document.body.scrollHeight);
+      }
 
 
       const form = document.getElementById('form');
