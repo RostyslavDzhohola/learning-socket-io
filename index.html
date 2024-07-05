@@ -101,6 +101,8 @@
     <script>
       let counter = 0;
       let onlineUsers = [];
+      let isTyping = false;
+      let typingTimer;
   
       const socket = io({
         ackTimeout: 10000,
@@ -153,6 +155,30 @@
         window.scrollTo(0, document.body.scrollHeight);
       }
 
+      input.addEventListener('focus', () => {
+        isTyping = true;
+        socket.emit('user typing', socket.auth.userName, true);
+      });
+
+      input.addEventListener('blur', () => {
+        isTyping = false;
+        socket.emit('user typing', socket.auth.userName, false);
+      });
+
+      // Optional: You can also add a debounced input event listener to stop "typing" after user stops typing for a while
+      input.addEventListener('input', () => {
+        clearTimeout(typingTimer);
+        if (!isTyping) {
+          isTyping = true;
+          socket.emit('user typing', socket.auth.userName, true);
+        }
+        typingTimer = setTimeout(() => {
+          isTyping = false;
+          socket.emit('user typing', socket.auth.userName, false);
+        }, 2000); // 2 seconds delay
+      });
+
+      // TODO: add typing event handler on server side
 
       const form = document.getElementById('form');
       const input = document.getElementById('input');
