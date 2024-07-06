@@ -113,6 +113,16 @@
         }
       });
 
+      const form = document.getElementById('form');
+      const input = document.getElementById('input');
+      const messages = document.getElementById('messages');
+      const toggleButton = document.getElementById('toggle-btn');
+      const dialog = document.getElementById('nicknameModal');
+      const openNicknameDialogButton = document.getElementById('openNicknameDialogButton');
+      const closeNicknameModalButton = document.getElementById('closeNicknameModalButton');
+      const nicknameInput = document.getElementById('nicknameInput');
+      const onlineUsersList = document.getElementById('online-users-list');
+
       socket.on("connect", () => {
         console.log(`connected ${socket.id} with name ${getNickname()} PS. this is where you put emit to get the list of users online`);
       });
@@ -155,40 +165,60 @@
         window.scrollTo(0, document.body.scrollHeight);
       }
 
+      // Typing functionality starts here
+      // !TODO: when i add following functions the messaging lugging and I don't receive chat message events
+
       input.addEventListener('focus', () => {
         isTyping = true;
-        socket.emit('user typing', socket.auth.userName, true);
+        socket.volatile.emit('user typing', socket.auth.userName, true);
       });
 
       input.addEventListener('blur', () => {
         isTyping = false;
-        socket.emit('user typing', socket.auth.userName, false);
+        socket.volatile.emit('user typing', socket.auth.userName, false);
       });
 
+      // add event send on message sent to inform server that user stoped typing
+
       // Optional: You can also add a debounced input event listener to stop "typing" after user stops typing for a while
+      // !TODO: when i add following functions the messaging lugging and I don't receive chat message events
       input.addEventListener('input', () => {
         clearTimeout(typingTimer);
         if (!isTyping) {
           isTyping = true;
-          socket.emit('user typing', socket.auth.userName, true);
+          socket.volatile.emit('user typing', socket.auth.userName, true);
         }
         typingTimer = setTimeout(() => {
           isTyping = false;
-          socket.emit('user typing', socket.auth.userName, false);
+          socket.volatile.emit('user typing', socket.auth.userName, false);
         }, 2000); // 2 seconds delay
       });
 
+      socket.on('user typing', (userName, status) => {
+        console.log(`user ${userName} typing: ${status}`);
+        const item = document.createElement('li');
+        if (status) {
+          item.textContent = `${userName} is typing...`;
+          messages.appendChild(item);
+          window.scrollTo(0, document.body.scrollHeight);
+        } else {
+          removeTypingMessage(userName);
+        }
+      });
+
+      function removeTypingMessage(userName) {
+        const existingMessage = Array.from(messages.children).find(
+          (li) => li.textContent.startsWith(`${userName} is typing...`)
+        );
+        if (existingMessage) {
+          messages.removeChild(existingMessage);
+        }
+      }
+
+      // Typing functionality ends here
+
       // TODO: add typing event handler on server side
 
-      const form = document.getElementById('form');
-      const input = document.getElementById('input');
-      const messages = document.getElementById('messages');
-      const toggleButton = document.getElementById('toggle-btn');
-      const dialog = document.getElementById('nicknameModal');
-      const openNicknameDialogButton = document.getElementById('openNicknameDialogButton');
-      const closeNicknameModalButton = document.getElementById('closeNicknameModalButton');
-      const nicknameInput = document.getElementById('nicknameInput');
-      const onlineUsersList = document.getElementById('online-users-list');
 
       function updateOnlineUsers (onlineList) {
         onlineUsers = onlineList;
@@ -251,6 +281,7 @@
   
       form.addEventListener('submit', (e) => {
         e.preventDefault();
+        // socket.volatile.emit('user typing', socket.auth.userName, false);
         if (input.value) {
           const clientOffset = `${socket.id}-${counter++}`;
           socket.emit('chat message', input.value, clientOffset);
@@ -259,15 +290,22 @@
           messages.appendChild(item);
           window.scrollTo(0, document.body.scrollHeight);
           input.value = '';
+          // socket.volatile.emit('user typing', socket.auth.userName, false);
         }
       });
   
       socket.on('chat message', (msg, serverOffset) => {
+        // removeTypingMessage(socket.auth.userName);
+        // console.log(`message received ${socket.auth.userName}`);
         const item = document.createElement('li');
         item.textContent = msg;
         messages.appendChild(item);
         window.scrollTo(0, document.body.scrollHeight);
         socket.auth.serverOffset = serverOffset;
+      });
+
+      socket.onAny((event, ...args) => {
+        console.log(`event  ${event} with args ${args}`);
       });
     </script>
   </body>

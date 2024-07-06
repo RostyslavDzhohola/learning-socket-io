@@ -96,6 +96,10 @@ if (cluster.isPrimary) {
       }
     }
 
+    socket.on('user typing', (userName, status) => {
+      socket.broadcast.volatile.emit('user typing', userName, status);
+    });
+
     socket.on("disconnect", async (reason) => {
       console.log(`disconnected ${socket.id} with username ${socket.handshake.auth.userName} due to ${reason}`);
       const usersOnline = await getUsersOnline();
@@ -104,6 +108,10 @@ if (cluster.isPrimary) {
       console.log(`Users: ${[...usersOnline]}`);
       io.emit("user disconnected", socket.handshake.auth.userName, Array.from(usersOnline));
     
+    });
+
+    socket.onAny((eventName, ...args) => {
+      console.log(`Received event: ${eventName}`, args);
     });
   
   });
