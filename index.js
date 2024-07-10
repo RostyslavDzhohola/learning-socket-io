@@ -24,11 +24,13 @@ if (cluster.isPrimary) {
     driver: sqlite3.Database,
   });
 
+  // todo: modify db to include senderUserName
   await db.exec(`
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      client_offset TEXT UNIQUE,
-      content TEXT
+      sender_user_name TEXT,
+      content TEXT,
+      client_offset TEXT UNIQUE
     );
   `);
 
@@ -46,7 +48,6 @@ if (cluster.isPrimary) {
   });
 
   io.on("connection", async (socket) => {
-
     async function getUsersOnline() {
       const sockets = await io.fetchSockets();
       let usersOnline = new Set();
@@ -59,11 +60,11 @@ if (cluster.isPrimary) {
 
     socket.on("chat message", async (msg, clientOffset, callback) => {
       let result;
-      let msgWithName = `${socket.handshake.auth.userName}: ${msg}`;
       try {
         result = await db.run(
-          "INSERT INTO messages (content, client_offset) VALUES (?, ?)",
-          msgWithName,
+          "INSERT INTO messages (sender_user_name, content, client_offset) VALUES (?, ?, ?)",
+          socket.handshake.auth.userName,
+          msg,
           clientOffset
         );
       } catch (e) {
@@ -74,21 +75,33 @@ if (cluster.isPrimary) {
         }
         return;
       }
-      socket.broadcast.emit("chat message", msgWithName, result.lastID);
+      socket.broadcast.volatile.emit('user typing', socket.handshake.auth.userName, false);
+      socket.broadcast.emit(
+        "chat message",
+        socket.handshake.auth.userName,
+        msg,
+        result.lastID
+      );
       callback();
     });
 
     if (!socket.recovered) {
       try {
-        console.log(`recovering ${socket.id} with name ${socket.handshake.auth.userName}`);
+        console.log(
+          `recovering ${socket.id} with name ${socket.handshake.auth.userName}`
+        );
         const usersOnline = await getUsersOnline();
         console.log(`Array of users when recovered ${Array.from(usersOnline)}`);
-        io.emit("user connected", socket.handshake.auth.userName, Array.from(usersOnline));
+        io.emit(
+          "user connected",
+          socket.handshake.auth.userName,
+          Array.from(usersOnline)
+        );
         await db.each(
-          "SELECT id, content FROM messages WHERE id > ?",
+          "SELECT id, sender_user_name, content FROM messages WHERE id > ?",
           [socket.handshake.auth.serverOffset || 0],
           (_err, row) => {
-            socket.emit("chat message", row.content, row.id);
+            socket.emit("chat message", row.sender_user_name, row.content, row.id);
           }
         );
       } catch (e) {
@@ -96,24 +109,30 @@ if (cluster.isPrimary) {
       }
     }
 
-    socket.on('user typing', (userName, status) => {
-      socket.broadcast.volatile.emit('user typing', userName, status);
+    socket.on("user typing", (userName, status) => {
+      socket.broadcast.volatile.emit("user typing", userName, status);
     });
 
     socket.on("disconnect", async (reason) => {
-      console.log(`disconnected ${socket.id} with username ${socket.handshake.auth.userName} due to ${reason}`);
+      console.log(
+        `disconnected ${socket.id} with username ${socket.handshake.auth.userName} due to ${reason}`
+      );
       const usersOnline = await getUsersOnline();
-      console.log(`Array of users when disconnected ${Array.from(usersOnline)}`);
+      console.log(
+        `Array of users when disconnected ${Array.from(usersOnline)}`
+      );
       usersOnline.delete(socket.handshake.auth.userName);
       console.log(`Users: ${[...usersOnline]}`);
-      io.emit("user disconnected", socket.handshake.auth.userName, Array.from(usersOnline));
-    
+      io.emit(
+        "user disconnected",
+        socket.handshake.auth.userName,
+        Array.from(usersOnline)
+      );
     });
 
     socket.onAny((eventName, ...args) => {
       console.log(`Received event: ${eventName}`, args);
     });
-  
   });
 
   const port = process.env.PORT;

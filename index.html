@@ -101,15 +101,16 @@
     <script>
       let counter = 0;
       let onlineUsers = [];
-      let isTyping = false;
       let typingTimer;
+      
   
       const socket = io({
         ackTimeout: 10000,
         retries: 3,
         auth: {
           serverOffset: 0,
-          userName: getNickname()
+          userName: getNickname(), 
+          isTyping: false
         }
       });
 
@@ -154,44 +155,46 @@
         if (existingMessage) {
           messages.removeChild(existingMessage);
         }
-
         // Create new message
         const item = document.createElement('li');
         item.textContent = `${userName} ${status}`;
         item.dataset.userName = userName;
         item.dataset.connectionStatus = status;
         messages.appendChild(item);
-
         window.scrollTo(0, document.body.scrollHeight);
       }
 
       // Typing functionality starts here
       // !TODO: when i add following functions the messaging lugging and I don't receive chat message events
-
-      input.addEventListener('focus', () => {
-        isTyping = true;
-        socket.volatile.emit('user typing', socket.auth.userName, true);
-      });
-
-      input.addEventListener('blur', () => {
-        isTyping = false;
-        socket.volatile.emit('user typing', socket.auth.userName, false);
-      });
-
-      // add event send on message sent to inform server that user stoped typing
-
-      // Optional: You can also add a debounced input event listener to stop "typing" after user stops typing for a while
-      // !TODO: when i add following functions the messaging lugging and I don't receive chat message events
-      input.addEventListener('input', () => {
-        clearTimeout(typingTimer);
-        if (!isTyping) {
-          isTyping = true;
-          socket.volatile.emit('user typing', socket.auth.userName, true);
+      function typingTimerFunction() {
+        if (!socket.auth.isTyping) { 
+          sendTypingEvent(true);
+          console.log("event input socket event sent is (true)");
         }
+        console.log("Setting timeout for typing event");
         typingTimer = setTimeout(() => {
-          isTyping = false;
-          socket.volatile.emit('user typing', socket.auth.userName, false);
-        }, 2000); // 2 seconds delay
+          console.log("Timeout reached, executing sendTypingEvent(false)");
+          sendTypingEvent(false);
+          console.log("event input timeout socket event sent is (false)");
+        }, 3000); 
+      }
+      // sends the User is Typing event working
+      input.addEventListener('focus', () => {
+        typingTimerFunction();
+      });
+
+      // sends the User is not Typing event
+      input.addEventListener('blur', () => {
+        if (socket.auth.isTyping) {
+          sendTypingEvent(false);
+        }
+      });
+
+      // sends the User is Typing event
+      input.addEventListener('input', () => {
+        console.log("Input changed, current isTyping:", socket.auth.isTyping);
+        clearTimeout(typingTimer);
+        typingTimerFunction();
       });
 
       socket.on('user typing', (userName, status) => {
@@ -213,6 +216,11 @@
         if (existingMessage) {
           messages.removeChild(existingMessage);
         }
+      }
+
+      function sendTypingEvent(status) {
+        socket.auth.isTyping = status;
+        socket.volatile.emit('user typing', socket.auth.userName, status);
       }
 
       // Typing functionality ends here
@@ -281,8 +289,10 @@
   
       form.addEventListener('submit', (e) => {
         e.preventDefault();
-        // socket.volatile.emit('user typing', socket.auth.userName, false);
         if (input.value) {
+          clearTimeout(typingTimer);
+          console.log("Form submitted, typing timer cleared");
+          socket.auth.isTyping = false;
           const clientOffset = `${socket.id}-${counter++}`;
           socket.emit('chat message', input.value, clientOffset);
           const item = document.createElement('li');
@@ -290,15 +300,13 @@
           messages.appendChild(item);
           window.scrollTo(0, document.body.scrollHeight);
           input.value = '';
-          // socket.volatile.emit('user typing', socket.auth.userName, false);
         }
       });
   
-      socket.on('chat message', (msg, serverOffset) => {
-        // removeTypingMessage(socket.auth.userName);
-        // console.log(`message received ${socket.auth.userName}`);
+      socket.on('chat message', (sender_user_name, msg, serverOffset) => {
+        console.log(`chat message from ${sender_user_name}: ${msg}`);
         const item = document.createElement('li');
-        item.textContent = msg;
+        item.textContent = `${sender_user_name}: ${msg}`;
         messages.appendChild(item);
         window.scrollTo(0, document.body.scrollHeight);
         socket.auth.serverOffset = serverOffset;
@@ -307,6 +315,11 @@
       socket.onAny((event, ...args) => {
         console.log(`event  ${event} with args ${args}`);
       });
+
+      socket.onAnyOutgoing((event, ...args) => {
+        console.log(`outgoing event  ${event} with args ${args}`);
+      });
+      
     </script>
   </body>
 </html>
