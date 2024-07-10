@@ -40,7 +40,6 @@ if (cluster.isPrimary) {
     connectionStateRecovery: {},
     adapter: createAdapter(),
   });
-
   const __dirname = dirname(fileURLToPath(import.meta.url));
 
   app.get("/", (req, res) => {
@@ -51,12 +50,30 @@ if (cluster.isPrimary) {
     async function getUsersOnline() {
       const sockets = await io.fetchSockets();
       let usersOnline = new Set();
+      
       sockets.forEach((socket) => {
         usersOnline.add(socket.handshake.auth.userName);
       });
       console.log(`Users: ${[...usersOnline]}`);
       return usersOnline;
     }
+
+    async function getUserSocketMap() {
+      const sockets = await io.fetchSockets();
+      let userSocketMap = new Map(sockets.map(socket => [socket.handshake.auth.userName, socket.id]));
+      console.log('userSocketMap:', userSocketMap.size, 'and value for', socket.handshake.auth.userName, 'is', userSocketMap.get(socket.handshake.auth.userName));
+      return userSocketMap;
+    }
+
+    socket.on("private message", async ({toUserName, privateMsg}) =>{
+      const userSocketMap = await getUserSocketMap();
+      const toSocketId = userSocketMap.get(toUserName);
+
+      // todo: add logic to send private message to the user
+      if (toSocketId) {
+        socket.to(toSocketId).emit("private message", privateMsg);
+      }
+    })
 
     socket.on("chat message", async (msg, clientOffset, callback) => {
       let result;
@@ -91,7 +108,8 @@ if (cluster.isPrimary) {
           `recovering ${socket.id} with name ${socket.handshake.auth.userName}`
         );
         const usersOnline = await getUsersOnline();
-        console.log(`Array of users when recovered ${Array.from(usersOnline)}`);
+        const userSocketMap = await getUserSocketMap();
+        console.log(`Array of users when recovered ${Array.from(usersOnline)} and size is ${usersOnline.size}`);
         io.emit(
           "user connected",
           socket.handshake.auth.userName,
@@ -118,10 +136,12 @@ if (cluster.isPrimary) {
         `disconnected ${socket.id} with username ${socket.handshake.auth.userName} due to ${reason}`
       );
       const usersOnline = await getUsersOnline();
+      const userSocketMap = await getUserSocketMap();
       console.log(
         `Array of users when disconnected ${Array.from(usersOnline)}`
       );
       usersOnline.delete(socket.handshake.auth.userName);
+      userSocketMap.delete(socket.handshake.auth.userName);
       console.log(`Users: ${[...usersOnline]}`);
       io.emit(
         "user disconnected",
