@@ -97,13 +97,21 @@
         <button type="button" id="closeNicknameModalButton">Cancel</button>
       </form>
     </dialog>
+    <dialog id="privateMsgModal" class="modal">
+      <form method="dialog">
+        <label for="privateMsgInput">Send private message</label>
+        <input type="text" id="privateMsgInput" name="privateMsg" placeholder="Enter private message" required>
+        <button type="submit">Send</button>
+        <button type="button" id="closePrivateMsgModalButton">Cancel</button>
+      </form>
+    </dialog>
     <script src="/socket.io/socket.io.js"></script>
     <script>
       let counter = 0;
       let onlineUsers = [];
       let typingTimer;
+      let receiverUserName;
       
-  
       const socket = io({
         ackTimeout: 10000,
         retries: 3,
@@ -118,11 +126,14 @@
       const input = document.getElementById('input');
       const messages = document.getElementById('messages');
       const toggleButton = document.getElementById('toggle-btn');
-      const dialog = document.getElementById('nicknameModal');
+      const dialogNicknameModal = document.getElementById('nicknameModal');
       const openNicknameDialogButton = document.getElementById('openNicknameDialogButton');
       const closeNicknameModalButton = document.getElementById('closeNicknameModalButton');
       const nicknameInput = document.getElementById('nicknameInput');
       const onlineUsersList = document.getElementById('online-users-list');
+      const dialogPrivateMsgModal = document.getElementById('privateMsgModal');
+      const closePrivateMsgModalButton = document.getElementById('closePrivateMsgModalButton');
+      const privateMsgInput = document.getElementById('privateMsgInput');
 
       socket.on("connect", () => {
         console.log(`connected ${socket.id} with name ${getNickname()} PS. this is where you put emit to get the list of users online`);
@@ -136,6 +147,7 @@
       socket.on("user connected", (userName, usersOnline) => {
         console.log(`user ${userName} connected`);
         console.log(`users online: ${usersOnline}`);
+        console.log(`User socket id ${socket.id}`);
         updateOnlineUsers(usersOnline);
         updateUserConnection(userName, 'connected');
       });
@@ -146,6 +158,14 @@
         updateOnlineUsers(usersOnline);
         updateUserConnection(userName, 'disconnected');
       });
+
+      function sendPrivateMessage(toUserName, privateMsg) {
+        console.log(`sending private message to ${toUserName}: ${privateMsg}`);
+        socket.volatile.emit("private message", {
+          toUserName,
+          privateMsg
+        });
+      }
 
       function updateUserConnection(userName, status) {
         // Find and remove any existing connection message for this user
@@ -169,13 +189,13 @@
       function typingTimerFunction() {
         if (!socket.auth.isTyping) { 
           sendTypingEvent(true);
-          console.log("event input socket event sent is (true)");
+          // console.log("event input socket event sent is (true)");
         }
-        console.log("Setting timeout for typing event");
+        // console.log("Setting timeout for typing event");
         typingTimer = setTimeout(() => {
-          console.log("Timeout reached, executing sendTypingEvent(false)");
+          // console.log("Timeout reached, executing sendTypingEvent(false)");
           sendTypingEvent(false);
-          console.log("event input timeout socket event sent is (false)");
+          // console.log("event input timeout socket event sent is (false)");
         }, 3000); 
       }
       // sends the User is Typing event working
@@ -225,36 +245,65 @@
 
       // Typing functionality ends here
 
-      // TODO: add typing event handler on server side
-
-
+      // modifying the updateOnlineUsers to make it clickable to send private message
       function updateOnlineUsers (onlineList) {
-        onlineUsers = onlineList;
-        onlineUsersList.innerHTML = onlineUsers.map((user) => `<li>${user}</li>`).join('');
+        onlineUsers = onlineList.filter((userName) => userName !== socket.auth.userName);
+        onlineUsersList.innerHTML = onlineUsers.map((userName) => `<li><button onclick="privateMsgDialog('${userName}')">${userName}</button></li>`).join('');
       }
+
+      // Modal for private message
+      function privateMsgDialog(userName) {
+        receiverUserName = userName;
+        console.log(`private message dialog for user ${userName}`);
+        dialogPrivateMsgModal.showModal();
+      }
+
+      if(closePrivateMsgModalButton) {
+        closePrivateMsgModalButton.addEventListener('click', (e) => {
+          e.preventDefault();
+          console.log("close private message modal");
+          dialogPrivateMsgModal.close();
+        });
+      }
+
+      dialogPrivateMsgModal.addEventListener('submit', () => {
+        if( dialogPrivateMsgModal.returnValue !== 'cancel') {
+          const privateMsg = privateMsgInput.value.trim();
+          privateMsgInput.value = '';
+          console.log(`private message dialog for user ${receiverUserName}`);
+          if (privateMsg) {
+            sendPrivateMessage(receiverUserName, privateMsg);
+          }
+        }
+      });
+
 
       //Open dialog window
       openNicknameDialogButton.addEventListener('click', (e) => {
         e.preventDefault();
-        dialog.showModal();
+        dialogNicknameModal.showModal();
       });
       // close dialog window
       if (closeNicknameModalButton) {
         closeNicknameModalButton.addEventListener('click', (e) => {
           e.preventDefault();
-          dialog.close();
+          dialogNicknameModal.close();
         });
       } else {
         console.error('Close button not found');
       }
       // handle submission of the dialog form
-      dialog.addEventListener('submit', () => {
-        if( dialog.returnValue !== 'cancel') {
+      dialogNicknameModal.addEventListener('submit', () => {
+        if( dialogNicknameModal.returnValue !== 'cancel') {
           const newNickname = nicknameInput.value.trim();
           if (newNickname) {
             setNickname(newNickname);
+          }
         }
-        }
+        // i need to ddisconect and connect again and refresh the page
+        socket.disconnect();
+        socket.connect();
+        window.location.reload();
       });
 
       function getNickname () {
@@ -306,11 +355,19 @@
       socket.on('chat message', (sender_user_name, msg, serverOffset) => {
         console.log(`chat message from ${sender_user_name}: ${msg}`);
         const item = document.createElement('li');
-        item.textContent = `${sender_user_name}: ${msg}`;
+        item.innerHTML = `<b>${sender_user_name}</b>: ${msg}`;
         messages.appendChild(item);
         window.scrollTo(0, document.body.scrollHeight);
         socket.auth.serverOffset = serverOffset;
       });
+
+      socket.on('private message', ({fromUser, message}) => {
+        console.log(`Received private message from ${fromUser}: ${message}`);
+        const item = document.createElement('li');
+        item.innerHTML = `Private message from <b>${fromUser}</b>: ${message}`;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+      })
 
       socket.onAny((event, ...args) => {
         console.log(`event  ${event} with args ${args}`);
